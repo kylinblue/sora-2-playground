@@ -7,6 +7,8 @@ A full-stack web application for experimenting with OpenAI's Sora video generati
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square)
 
+**[View Source Code on GitHub](https://github.com/sshh12/sora-2-playground)**
+
 ## Features
 
 - **Video Generation**: Create videos from text prompts using Sora 2 or Sora 2 Pro models

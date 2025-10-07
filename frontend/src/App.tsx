@@ -124,6 +124,11 @@ function AppContent() {
               OpenAI Sora API
             </a>
           </p>
+          <p className="mt-2">
+            <a href="https://github.com/sshh12/sora-2-playground" className="text-gray-500 hover:text-gray-700 hover:underline" target="_blank" rel="noopener noreferrer">
+              View Source Code on GitHub
+            </a>
+          </p>
         </div>
       </footer>
     </div>
