@@ -20,6 +20,28 @@ function VideoCard({ video, onSelect, onDelete, onRemix }: {
   const [showRemixInput, setShowRemixInput] = useState(false);
   const [remixPrompt, setRemixPrompt] = useState('');
   const [progress, setProgress] = useState(video.progress);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+
+  // Load thumbnail for completed videos
+  useEffect(() => {
+    if (video.status === 'completed' && !thumbnailUrl) {
+      apiService.downloadVideo(video.id, 'thumbnail')
+        .then((blob) => {
+          const url = URL.createObjectURL(blob);
+          setThumbnailUrl(url);
+        })
+        .catch((error) => {
+          console.error('Failed to load thumbnail:', error);
+        });
+    }
+
+    // Cleanup blob URL on unmount
+    return () => {
+      if (thumbnailUrl) {
+        URL.revokeObjectURL(thumbnailUrl);
+      }
+    };
+  }, [video.status, video.id]);
 
   useEffect(() => {
     if (video.status === 'in_progress' || video.status === 'queued') {
@@ -62,14 +84,17 @@ function VideoCard({ video, onSelect, onDelete, onRemix }: {
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
       {video.status === 'completed' ? (
         <div className="relative cursor-pointer" onClick={onSelect}>
-          <img
-            src={apiService.getVideoUrl(video.id, 'thumbnail')}
-            alt="Video thumbnail"
-            className="w-full h-48 object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
+          {thumbnailUrl ? (
+            <img
+              src={thumbnailUrl}
+              alt="Video thumbnail"
+              className="w-full h-48 object-cover"
+            />
+          ) : (
+            <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+            </div>
+          )}
           <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
             <svg className="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />

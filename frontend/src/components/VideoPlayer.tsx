@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Video } from '../types';
 import { apiService } from '../services/api';
 
@@ -9,6 +9,28 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ video, onClose }: VideoPlayerProps) {
   const [loading, setLoading] = useState(true);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
+  // Load video when component mounts
+  useEffect(() => {
+    apiService.downloadVideo(video.id, 'video')
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        setVideoUrl(url);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error('Failed to load video:', error);
+        setLoading(false);
+      });
+
+    // Cleanup blob URL on unmount
+    return () => {
+      if (videoUrl) {
+        URL.revokeObjectURL(videoUrl);
+      }
+    };
+  }, [video.id]);
 
   const handleDownload = async () => {
     try {
@@ -43,19 +65,24 @@ export function VideoPlayer({ video, onClose }: VideoPlayerProps) {
         </div>
 
         <div className="p-6">
-          {loading && (
+          {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-gray-600">Loading video...</span>
+            </div>
+          ) : videoUrl ? (
+            <video
+              controls
+              className="w-full rounded-lg"
+              src={videoUrl}
+            >
+              Your browser does not support the video tag.
+            </video>
+          ) : (
+            <div className="flex items-center justify-center py-8 text-red-600">
+              Failed to load video
             </div>
           )}
-          <video
-            controls
-            className="w-full rounded-lg"
-            onLoadedData={() => setLoading(false)}
-            src={apiService.getVideoUrl(video.id, 'video')}
-          >
-            Your browser does not support the video tag.
-          </video>
 
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <div className="grid grid-cols-2 gap-4 text-sm">
