@@ -68,12 +68,6 @@ def get_openai_client(api_key: str) -> OpenAI:
     return OpenAI(api_key=key)
 
 
-@app.get("/")
-async def root():
-    """Health check endpoint"""
-    return {"status": "ok", "message": "Sora API Playground Backend"}
-
-
 @app.post("/api/videos")
 async def create_video(
     prompt: str = Form(...),
@@ -323,6 +317,13 @@ async def remix_video(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Health check endpoint for development mode
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "ok", "message": "Sora API Playground Backend"}
+
+
 # Serve static files in production (when static directory exists)
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
@@ -341,6 +342,12 @@ if static_dir.exists():
         if index_file.exists():
             return FileResponse(index_file)
         raise HTTPException(status_code=404, detail="Not found")
+else:
+    # In development mode, return health check at root
+    @app.get("/")
+    async def root():
+        """Health check endpoint for development"""
+        return {"status": "ok", "message": "Sora API Playground Backend (Development Mode)"}
 
 
 if __name__ == "__main__":

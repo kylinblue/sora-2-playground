@@ -219,6 +219,9 @@ frontend/dist/
 frontend/dist-ssr/
 frontend/build/
 
+# Backend static files (built frontend)
+backend/static/
+
 # Frontend environment variables
 frontend/.env
 frontend/.env.local
