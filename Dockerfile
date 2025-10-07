@@ -41,6 +41,5 @@ COPY --from=frontend-builder /app/frontend/dist ./static
 # Expose port (Railway will set PORT env var)
 EXPOSE 8000
 
-# Run the application
-# Railway sets PORT env var, but default to 8000 for local dev
-CMD uvicorn main:app --host 0.0.0.0 --port 8000
+# Run the application with gunicorn + uvicorn workers for better performance
+CMD gunicorn main:app --bind 0.0.0.0:8000 --worker-class uvicorn.workers.UvicornWorker --workers 4
