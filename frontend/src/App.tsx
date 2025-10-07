@@ -9,7 +9,7 @@ import { apiService } from './services/api';
 
 function AppContent() {
   const { hasApiKey } = useApiKey();
-  const { videoIds, addVideoId, removeVideoId } = useVideoIds();
+  const { videoIds, addVideoId, removeVideoId, clearVideoIds } = useVideoIds();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +73,13 @@ function AppContent() {
     }
   };
 
+  const handleClearAll = () => {
+    if (!confirm('Are you sure you want to clear all videos from your local list? This will not delete them from OpenAI.')) return;
+
+    clearVideoIds();
+    setVideos([]);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
@@ -108,6 +115,7 @@ function AppContent() {
               <VideoGallery
                 videos={videos}
                 onRefresh={loadVideos}
+                onClear={handleClearAll}
                 onDelete={handleDeleteVideo}
                 onRemix={handleRemixVideo}
               />
