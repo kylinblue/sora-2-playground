@@ -36,6 +36,7 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
   const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null);
   const [referenceImageSource, setReferenceImageSource] = useState<'upload' | 'ai' | 'frame' | null>(null);
+  const [imageResizeNotice, setImageResizeNotice] = useState<string | null>(null);
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
   const [improvedPrompt, setImprovedPrompt] = useState<string | null>(null);
   const [showImageGenerator, setShowImageGenerator] = useState(false);
@@ -102,21 +103,137 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      setReferenceImage(file);
-      setReferenceImageSource('upload');
-      setUseAIImage(false);
-      setShowImageGenerator(false);
-
-      // Create preview URL
-      if (referenceImagePreview) {
-        URL.revokeObjectURL(referenceImagePreview);
-      }
+  const resizeAndCropImage = async (file: File, targetWidth: number, targetHeight: number): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
       const url = URL.createObjectURL(file);
-      setReferenceImagePreview(url);
-    }
+
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+
+        const targetAspect = targetWidth / targetHeight;
+        const imgAspect = img.width / img.height;
+
+        // Calculate dimensions for cover (fill entire area, crop excess)
+        let sourceWidth, sourceHeight, sourceX, sourceY;
+
+        if (imgAspect > targetAspect) {
+          // Image is wider than target - fit to height, crop width
+          sourceHeight = img.height;
+          sourceWidth = img.height * targetAspect;
+          sourceX = (img.width - sourceWidth) / 2;
+          sourceY = 0;
+        } else {
+          // Image is taller than target - fit to width, crop height
+          sourceWidth = img.width;
+          sourceHeight = img.width / targetAspect;
+          sourceX = 0;
+          sourceY = (img.height - sourceHeight) / 2;
+        }
+
+        // Create canvas with target dimensions
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        // Draw cropped and resized image
+        ctx.drawImage(
+          img,
+          sourceX, sourceY, sourceWidth, sourceHeight,
+          0, 0, targetWidth, targetHeight
+        );
+
+        // Convert to blob and then to File
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error('Failed to create blob'));
+            return;
+          }
+
+          const processedFile = new File([blob], file.name, {
+            type: 'image/png',
+            lastModified: Date.now()
+          });
+
+          resolve(processedFile);
+        }, 'image/png');
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image'));
+      };
+
+      img.src = url;
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+
+    setUseAIImage(false);
+    setShowImageGenerator(false);
+
+    // Parse target dimensions from size
+    const [targetWidth, targetHeight] = size.split('x').map(Number);
+
+    // Load image to check dimensions
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = async () => {
+      URL.revokeObjectURL(url);
+
+      const needsResize = img.width !== targetWidth || img.height !== targetHeight;
+
+      if (needsResize) {
+        setImageResizeNotice(
+          `Image resized from ${img.width}×${img.height} to ${targetWidth}×${targetHeight} (aspect ratio preserved with center crop)`
+        );
+
+        try {
+          // Resize and crop the image
+          const processedFile = await resizeAndCropImage(file, targetWidth, targetHeight);
+          setReferenceImage(processedFile);
+          setReferenceImageSource('upload');
+
+          // Create preview URL
+          if (referenceImagePreview) {
+            URL.revokeObjectURL(referenceImagePreview);
+          }
+          const previewUrl = URL.createObjectURL(processedFile);
+          setReferenceImagePreview(previewUrl);
+        } catch (error) {
+          console.error('Failed to resize image:', error);
+          alert('Failed to process image. Please try a different file.');
+        }
+      } else {
+        setImageResizeNotice(null);
+        setReferenceImage(file);
+        setReferenceImageSource('upload');
+
+        // Create preview URL
+        if (referenceImagePreview) {
+          URL.revokeObjectURL(referenceImagePreview);
+        }
+        const previewUrl = URL.createObjectURL(file);
+        setReferenceImagePreview(previewUrl);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      alert('Failed to load image. Please try a different file.');
+    };
+
+    img.src = url;
   };
 
   const handleImageGenerated = (imageFile: File) => {
@@ -144,6 +261,7 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
     setReferenceImage(null);
     setReferenceImagePreview(null);
     setReferenceImageSource(null);
+    setImageResizeNotice(null);
     setUseAIImage(false);
     setShowImageGenerator(false);
     if (fileInputRef.current) {
@@ -298,13 +416,21 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg p-3 border border-green-200">
+              <div className="bg-white rounded-lg p-3 border border-green-200 space-y-2">
                 <p className="text-sm text-gray-700">
                   <span className="font-medium">Source:</span>{' '}
                   {referenceImageSource === 'ai' && 'AI Generated'}
                   {referenceImageSource === 'frame' && 'Extracted Frame'}
                   {referenceImageSource === 'upload' && `Uploaded (${referenceImage?.name})`}
                 </p>
+                {imageResizeNotice && (
+                  <p className="text-xs text-blue-600 flex items-start gap-1.5">
+                    <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <span>{imageResizeNotice}</span>
+                  </p>
+                )}
               </div>
 
               <button
