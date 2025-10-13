@@ -1,55 +1,74 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
+interface VideoData {
+  id: string;
+  prompt: string;
+}
+
 interface VideoIdsContextType {
   videoIds: string[];
-  addVideoId: (id: string) => void;
+  videoData: Record<string, VideoData>;
+  addVideoId: (id: string, prompt: string) => void;
   removeVideoId: (id: string) => void;
   clearVideoIds: () => void;
+  getPrompt: (id: string) => string | undefined;
 }
 
 const VideoIdsContext = createContext<VideoIdsContextType | undefined>(undefined);
 
-const VIDEO_IDS_STORAGE_KEY = 'sora_video_ids';
+const VIDEO_DATA_STORAGE_KEY = 'sora_video_data';
 
 export function VideoIdsProvider({ children }: { children: ReactNode }) {
-  const [videoIds, setVideoIds] = useState<string[]>(() => {
-    // Load video IDs from localStorage on mount
+  const [videoData, setVideoData] = useState<Record<string, VideoData>>(() => {
+    // Load video data from localStorage on mount
     try {
-      const stored = localStorage.getItem(VIDEO_IDS_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
+      const stored = localStorage.getItem(VIDEO_DATA_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : {};
     } catch (error) {
-      console.error('Failed to load video IDs from localStorage:', error);
-      return [];
+      console.error('Failed to load video data from localStorage:', error);
+      return {};
     }
   });
 
-  useEffect(() => {
-    // Save video IDs to localStorage whenever they change
-    try {
-      localStorage.setItem(VIDEO_IDS_STORAGE_KEY, JSON.stringify(videoIds));
-    } catch (error) {
-      console.error('Failed to save video IDs to localStorage:', error);
-    }
-  }, [videoIds]);
+  // Derive videoIds array from videoData object (sorted by insertion order)
+  const videoIds = Object.keys(videoData);
 
-  const addVideoId = (id: string) => {
-    setVideoIds((prev) => {
-      // Avoid duplicates and add to the beginning
-      if (prev.includes(id)) return prev;
-      return [id, ...prev];
+  useEffect(() => {
+    // Save video data to localStorage whenever it changes
+    try {
+      localStorage.setItem(VIDEO_DATA_STORAGE_KEY, JSON.stringify(videoData));
+    } catch (error) {
+      console.error('Failed to save video data to localStorage:', error);
+    }
+  }, [videoData]);
+
+  const addVideoId = (id: string, prompt: string) => {
+    setVideoData((prev) => {
+      // If already exists, don't add again
+      if (prev[id]) return prev;
+      // Add to beginning by creating new object with id first
+      return { [id]: { id, prompt }, ...prev };
     });
   };
 
   const removeVideoId = (id: string) => {
-    setVideoIds((prev) => prev.filter((vid) => vid !== id));
+    setVideoData((prev) => {
+      const newData = { ...prev };
+      delete newData[id];
+      return newData;
+    });
   };
 
   const clearVideoIds = () => {
-    setVideoIds([]);
+    setVideoData({});
+  };
+
+  const getPrompt = (id: string): string | undefined => {
+    return videoData[id]?.prompt;
   };
 
   return (
-    <VideoIdsContext.Provider value={{ videoIds, addVideoId, removeVideoId, clearVideoIds }}>
+    <VideoIdsContext.Provider value={{ videoIds, videoData, addVideoId, removeVideoId, clearVideoIds, getPrompt }}>
       {children}
     </VideoIdsContext.Provider>
   );

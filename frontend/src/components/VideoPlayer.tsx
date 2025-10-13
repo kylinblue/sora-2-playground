@@ -4,10 +4,11 @@ import { apiService } from '../services/api';
 
 interface VideoPlayerProps {
   video: Video;
+  prompt?: string;
   onClose: () => void;
 }
 
-export function VideoPlayer({ video, onClose }: VideoPlayerProps) {
+export function VideoPlayer({ video, prompt, onClose }: VideoPlayerProps) {
   const [loading, setLoading] = useState(true);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
@@ -81,6 +82,17 @@ export function VideoPlayer({ video, onClose }: VideoPlayerProps) {
           ) : (
             <div className="flex items-center justify-center py-8 text-red-600">
               Failed to load video
+            </div>
+          )}
+
+          {prompt && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <label className="block text-sm font-medium text-blue-900 mb-2">
+                Original Prompt
+              </label>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {prompt}
+              </p>
             </div>
           )}
 

@@ -4,15 +4,17 @@ import { VideoIdsProvider, useVideoIds } from './hooks/useVideoIds';
 import { ApiKeyInput } from './components/ApiKeyInput';
 import { VideoCreationForm } from './components/VideoCreationForm';
 import { VideoGallery } from './components/VideoGallery';
+import { CacheStatus } from './components/CacheStatus';
 import { Video, VideoCreateParams } from './types';
 import { apiService } from './services/api';
 
 function AppContent() {
   const { hasApiKey } = useApiKey();
-  const { videoIds, addVideoId, removeVideoId, clearVideoIds } = useVideoIds();
+  const { videoIds, addVideoId, removeVideoId, clearVideoIds, getPrompt } = useVideoIds();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [promptToReuse, setPromptToReuse] = useState<string | null>(null);
 
   const loadVideos = async () => {
     if (!hasApiKey) return;
@@ -38,7 +40,7 @@ function AppContent() {
     try {
       setError(null);
       const video = await apiService.createVideo(params);
-      addVideoId(video.id); // Store video ID in local storage
+      addVideoId(video.id, params.prompt); // Store video ID and prompt in local storage
       setVideos([video, ...videos]);
       alert('Video generation started! Check the gallery for progress.');
     } catch (err: any) {
@@ -64,7 +66,7 @@ function AppContent() {
   const handleRemixVideo = async (videoId: string, prompt: string) => {
     try {
       const video = await apiService.remixVideo(videoId, prompt);
-      addVideoId(video.id); // Store remix video ID in local storage
+      addVideoId(video.id, prompt); // Store remix video ID and prompt in local storage
       setVideos([video, ...videos]);
       alert('Video remix started! Check the gallery for progress.');
     } catch (err: any) {
@@ -80,6 +82,12 @@ function AppContent() {
     setVideos([]);
   };
 
+  const handleReusePrompt = (prompt: string) => {
+    setPromptToReuse(prompt);
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
@@ -91,6 +99,8 @@ function AppContent() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <ApiKeyInput />
+
+        {hasApiKey && <CacheStatus />}
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -105,7 +115,11 @@ function AppContent() {
 
         {hasApiKey && (
           <>
-            <VideoCreationForm onSubmit={handleCreateVideo} />
+            <VideoCreationForm
+              onSubmit={handleCreateVideo}
+              initialPrompt={promptToReuse}
+              onPromptUsed={() => setPromptToReuse(null)}
+            />
 
             {loading ? (
               <div className="flex items-center justify-center py-12">
@@ -118,6 +132,8 @@ function AppContent() {
                 onClear={handleClearAll}
                 onDelete={handleDeleteVideo}
                 onRemix={handleRemixVideo}
+                onReusePrompt={handleReusePrompt}
+                getPrompt={getPrompt}
               />
             )}
           </>

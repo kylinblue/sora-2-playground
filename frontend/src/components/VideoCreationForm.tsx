@@ -1,9 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { VideoCreateParams } from '../types';
+import { apiService } from '../services/api';
+import { PromptSuggestionModal } from './PromptSuggestionModal';
 
 interface VideoCreationFormProps {
   onSubmit: (params: VideoCreateParams) => void;
   disabled?: boolean;
+  initialPrompt?: string | null;
+  onPromptUsed?: () => void;
 }
 
 const SIZE_OPTIONS = [
@@ -21,13 +25,23 @@ const DURATION_OPTIONS = [
   { value: '20', label: '20 seconds' },
 ];
 
-export function VideoCreationForm({ onSubmit, disabled = false }: VideoCreationFormProps) {
+export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, onPromptUsed }: VideoCreationFormProps) {
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState<'sora-2' | 'sora-2-pro'>('sora-2');
   const [seconds, setSeconds] = useState('8');
   const [size, setSize] = useState('1280x720');
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
+  const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
+  const [improvedPrompt, setImprovedPrompt] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle initial prompt from parent (reuse prompt feature)
+  useEffect(() => {
+    if (initialPrompt) {
+      setPrompt(initialPrompt);
+      onPromptUsed?.(); // Clear the initial prompt after using it
+    }
+  }, [initialPrompt, onPromptUsed]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,14 +75,63 @@ export function VideoCreationForm({ onSubmit, disabled = false }: VideoCreationF
     }
   };
 
+  const handleImprovePrompt = async () => {
+    if (!prompt.trim()) {
+      alert('Please enter a prompt first');
+      return;
+    }
+
+    setIsImprovingPrompt(true);
+    try {
+      const result = await apiService.improvePrompt(prompt.trim());
+      setImprovedPrompt(result.improved);
+    } catch (error: any) {
+      console.error('Failed to improve prompt:', error);
+      alert(`Failed to improve prompt: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setIsImprovingPrompt(false);
+    }
+  };
+
+  const handleAcceptImprovedPrompt = (newPrompt: string) => {
+    setPrompt(newPrompt);
+    setImprovedPrompt(null);
+  };
+
+  const handleRejectImprovedPrompt = () => {
+    setImprovedPrompt(null);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
       <h2 className="text-2xl font-bold mb-4">Create New Video</h2>
 
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Prompt
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Prompt
+          </label>
+          <button
+            type="button"
+            onClick={handleImprovePrompt}
+            disabled={disabled || isImprovingPrompt || !prompt.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+          >
+            {isImprovingPrompt ? (
+              <>
+                <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent"></div>
+                <span>Enhancing...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                <span>Enhance with AI</span>
+              </>
+            )}
+          </button>
+        </div>
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -78,6 +141,9 @@ export function VideoCreationForm({ onSubmit, disabled = false }: VideoCreationF
           disabled={disabled}
           required
         />
+        <p className="text-xs text-gray-500 mt-1.5">
+          Tip: Click "Enhance with AI" to optimize your prompt using Sora best practices
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -159,6 +225,15 @@ export function VideoCreationForm({ onSubmit, disabled = false }: VideoCreationF
       >
         Generate Video
       </button>
+
+      {improvedPrompt && (
+        <PromptSuggestionModal
+          originalPrompt={prompt}
+          improvedPrompt={improvedPrompt}
+          onAccept={handleAcceptImprovedPrompt}
+          onReject={handleRejectImprovedPrompt}
+        />
+      )}
     </form>
   );
 }

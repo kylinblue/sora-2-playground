@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { Video, VideoCreateParams, VideoListResponse } from '../types';
+import { mediaCacheService } from './cache';
 
 class SoraApiService {
   private client: AxiosInstance;
@@ -64,10 +65,19 @@ class SoraApiService {
 
   async deleteVideo(videoId: string): Promise<void> {
     await this.client.delete(`/videos/${videoId}`);
+    // Clear cached media for this video
+    await mediaCacheService.delete(videoId);
   }
 
   async remixVideo(videoId: string, prompt: string): Promise<Video> {
     const response = await this.client.post<Video>(`/videos/${videoId}/remix`, {
+      prompt,
+    });
+    return response.data;
+  }
+
+  async improvePrompt(prompt: string): Promise<{ original: string; improved: string }> {
+    const response = await this.client.post<{ original: string; improved: string }>('/prompts/improve', {
       prompt,
     });
     return response.data;
@@ -82,11 +92,26 @@ class SoraApiService {
   }
 
   async downloadVideo(videoId: string, variant: 'video' | 'thumbnail' | 'spritesheet' = 'video'): Promise<Blob> {
+    // Check cache first
+    const cachedBlob = await mediaCacheService.get(videoId, variant);
+    if (cachedBlob) {
+      console.log(`Using cached ${variant} for ${videoId}`);
+      return cachedBlob;
+    }
+
+    // Cache miss - download from API
+    console.log(`Downloading ${variant} for ${videoId} from API`);
     const response = await this.client.get(`/videos/${videoId}/content`, {
       params: { variant },
       responseType: 'blob',
     });
-    return response.data;
+
+    const blob = response.data;
+
+    // Store in cache for future use
+    await mediaCacheService.set(videoId, variant, blob);
+
+    return blob;
   }
 }
 

@@ -9,13 +9,17 @@ interface VideoGalleryProps {
   onClear: () => void;
   onDelete: (videoId: string) => void;
   onRemix: (videoId: string, prompt: string) => void;
+  onReusePrompt: (prompt: string) => void;
+  getPrompt: (videoId: string) => string | undefined;
 }
 
-function VideoCard({ video, onSelect, onDelete, onRemix }: {
+function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, prompt }: {
   video: Video;
   onSelect: () => void;
   onDelete: () => void;
   onRemix: (prompt: string) => void;
+  onReusePrompt: () => void;
+  prompt?: string;
 }) {
   const [showRemixInput, setShowRemixInput] = useState(false);
   const [remixPrompt, setRemixPrompt] = useState('');
@@ -144,19 +148,32 @@ function VideoCard({ video, onSelect, onDelete, onRemix }: {
         {video.status === 'completed' && (
           <>
             {!showRemixInput ? (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowRemixInput(true)}
-                  className="flex-1 px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
-                >
-                  Remix
-                </button>
-                <button
-                  onClick={onDelete}
-                  className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                >
-                  Delete
-                </button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowRemixInput(true)}
+                    className="flex-1 px-3 py-2 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
+                  >
+                    Remix
+                  </button>
+                  <button
+                    onClick={onDelete}
+                    className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+                {prompt && (
+                  <button
+                    onClick={onReusePrompt}
+                    className="w-full px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center justify-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reuse Prompt
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
@@ -190,7 +207,7 @@ function VideoCard({ video, onSelect, onDelete, onRemix }: {
   );
 }
 
-export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix }: VideoGalleryProps) {
+export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, onReusePrompt, getPrompt }: VideoGalleryProps) {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
 
   if (videos.length === 0) {
@@ -232,20 +249,26 @@ export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix }: 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {videos.map((video) => (
-          <VideoCard
-            key={video.id}
-            video={video}
-            onSelect={() => video.status === 'completed' && setSelectedVideo(video)}
-            onDelete={() => onDelete(video.id)}
-            onRemix={(prompt) => onRemix(video.id, prompt)}
-          />
-        ))}
+        {videos.map((video) => {
+          const prompt = getPrompt(video.id);
+          return (
+            <VideoCard
+              key={video.id}
+              video={video}
+              prompt={prompt}
+              onSelect={() => video.status === 'completed' && setSelectedVideo(video)}
+              onDelete={() => onDelete(video.id)}
+              onRemix={(remixPrompt) => onRemix(video.id, remixPrompt)}
+              onReusePrompt={() => prompt && onReusePrompt(prompt)}
+            />
+          );
+        })}
       </div>
 
       {selectedVideo && (
         <VideoPlayer
           video={selectedVideo}
+          prompt={getPrompt(selectedVideo.id)}
           onClose={() => setSelectedVideo(null)}
         />
       )}

@@ -46,6 +46,10 @@ class RemixRequest(BaseModel):
     prompt: str
 
 
+class PromptImproveRequest(BaseModel):
+    prompt: str
+
+
 def get_openai_client(api_key: str) -> OpenAI:
     """
     Create OpenAI client with user's API key
@@ -311,6 +315,119 @@ async def remix_video(
             "size": video.size,
             "seconds": video.seconds,
             "remixed_from_video_id": getattr(video, "remixed_from_video_id", video_id)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/prompts/improve")
+async def improve_prompt(
+    request: PromptImproveRequest,
+    authorization: str = Header(...)
+):
+    """
+    Use AI to improve a Sora video prompt based on best practices
+
+    Parameters:
+    - prompt: The original prompt to improve
+
+    Returns an improved version of the prompt optimized for Sora video generation
+    """
+    try:
+        client = get_openai_client(authorization)
+
+        system_prompt = """You are an expert at crafting prompts for OpenAI's Sora video generation model. Your job is to take a user's basic prompt and enhance it following the official Sora 2 Prompting Guide.
+
+CORE PRINCIPLES:
+
+1. CLARITY OVER VAGUENESS
+Transform vague descriptions into concrete, filmable details:
+- "beautiful street" → "wet asphalt, zebra crosswalk, neon signs reflecting in puddles"
+- "person moves" → "cyclist pedals three times, brakes at crosswalk"
+- "cinematic look" → "anamorphic 2.0x lens, shallow DOF, volumetric light"
+
+2. CAMERA & FRAMING
+Be specific about camera work:
+- Framing: wide establishing shot, medium close-up, aerial shot, etc.
+- Angle: eye level, low angle, slight downward angle, over-shoulder
+- Movement: slowly tilting camera, handheld ENG camera, slow dolly left, tracking shot
+- Depth of field: shallow (sharp subject, blurred background) or deep focus
+
+3. LIGHTING & COLOR
+Describe lighting with precision:
+- Quality: soft window light, hard single source, diffuse overhead
+- Direction: warm backlight, cool rim from hallway, key from camera left
+- Palette: Include 3-5 color anchors (amber, cream, walnut brown, slate blue, etc.)
+
+4. VISUAL STYLE & ERA
+Set a clear aesthetic tone:
+- Film types: "1970s film on 35mm," "16mm black-and-white documentary," "90s documentary-style"
+- Look: "hand-painted 2D/3D hybrid," "IMAX-scale," "vintage commercial"
+- Technical: "180° shutter," "slight gate weave," "natural flares," "soft focus"
+
+5. ACTION & TIMING
+Keep motion simple and break actions into clear beats:
+- One camera move + one subject action per shot
+- Use specific counts: "takes four steps to window, pauses, pulls curtain in final second"
+- Describe gestures precisely: "taps bulb; sparks crackle; flinches; drops bulb; catches it"
+
+6. MOTION CONTROL
+The model follows instructions more reliably in shorter clips. Keep shots concise with single, clear actions.
+
+7. DIALOGUE & SOUND
+- Format dialogue in a separate section below the prose
+- Keep lines brief and natural
+- Label speakers consistently in multi-character scenes
+- Background sound: suggest ambient audio (rain, traffic hiss, espresso machine hum)
+
+RECOMMENDED STRUCTURE:
+
+[Optional: Style note - film era, aesthetic, technical specs]
+
+[Prose scene description with specific visual details - characters, setting, weather, costumes]
+
+Cinematography:
+Camera shot: [specific framing and angle]
+Lens: [if relevant - 35mm, 50mm, etc.]
+Lighting: [quality, direction, and source]
+Mood: [overall tone]
+
+Actions:
+- [Action 1: specific beat with timing]
+- [Action 2: another clear gesture]
+- [Action 3: final movement or pause]
+
+Dialogue: [if applicable]
+- [Character name]: "[Brief, natural line]"
+- [Character name]: "[Response]"
+
+Background Sound: [if applicable]
+[Ambient audio cues - keep minimal and diegetic]
+
+IMPORTANT NOTES:
+- Shorter, lighter prompts give the model creative freedom (expect surprising results)
+- Longer, detailed prompts provide control but may not always be followed perfectly
+- Avoid describing multiple shots unless needed - focus on one clear shot
+- Characters: Keep descriptions consistent to maintain identity
+- Leave some details open for creative interpretation unless control is critical
+
+Return ONLY the improved prompt following this structure. No meta-commentary or explanations."""
+
+        response = client.chat.completions.create(
+            model="o3-mini",
+            reasoning_effort="medium",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Improve this Sora video prompt following the official Sora 2 Prompting Guide:\n\n{request.prompt}"}
+            ]
+        )
+
+        improved_prompt = response.choices[0].message.content.strip()
+
+        return {
+            "original": request.prompt,
+            "improved": improved_prompt
         }
 
     except Exception as e:
