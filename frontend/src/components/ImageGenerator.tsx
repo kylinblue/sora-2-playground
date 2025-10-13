@@ -10,7 +10,6 @@ interface ImageGeneratorProps {
 export function ImageGenerator({ videoSize, onImageGenerated, disabled = false }: ImageGeneratorProps) {
   const [imagePrompt, setImagePrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [referenceImages, setReferenceImages] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,41 +24,43 @@ export function ImageGenerator({ videoSize, onImageGenerated, disabled = false }
   };
 
   const handleGenerateImage = async () => {
-    if (!imagePrompt.trim()) {
-      alert('Please enter a description for the reference image');
-      return;
+    // Use default prompt if empty and reference images are provided
+    let finalPrompt = imagePrompt.trim();
+
+    if (!finalPrompt) {
+      if (referenceImages.length === 0) {
+        alert('Please enter a description for the reference image');
+        return;
+      } else if (referenceImages.length === 1) {
+        finalPrompt = 'regenerate this image';
+      } else {
+        finalPrompt = 'combine these images';
+      }
     }
 
     setIsGenerating(true);
     try {
       const blob = await apiService.generateImage(
-        imagePrompt.trim(),
+        finalPrompt,
         videoSize,
         referenceImages.length > 0 ? referenceImages : undefined
       );
-      const url = URL.createObjectURL(blob);
-      setGeneratedImage(url);
 
-      // Convert blob to File object
+      // Convert blob to File object and notify parent
       const file = new File([blob], 'generated-reference.png', { type: 'image/png' });
       onImageGenerated(file);
+
+      // Clear the form after successful generation
+      setImagePrompt('');
+      setReferenceImages([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error: any) {
       console.error('Failed to generate image:', error);
       alert(`Failed to generate image: ${error.response?.data?.detail || error.message}`);
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  const handleClearImage = () => {
-    if (generatedImage) {
-      URL.revokeObjectURL(generatedImage);
-    }
-    setGeneratedImage(null);
-    setImagePrompt('');
-    setReferenceImages([]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -72,10 +73,8 @@ export function ImageGenerator({ videoSize, onImageGenerated, disabled = false }
         <h3 className="font-semibold text-gray-800">AI-Powered Reference Image</h3>
       </div>
 
-      {!generatedImage ? (
-        <>
-          {/* Reference Images Upload (Optional) */}
-          <div>
+      {/* Reference Images Upload (Optional) */}
+      <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Reference Images (Optional)
             </label>
@@ -121,29 +120,33 @@ export function ImageGenerator({ videoSize, onImageGenerated, disabled = false }
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Describe your reference image
+              Describe your reference image {referenceImages.length > 0 && <span className="text-gray-500 font-normal">(Optional)</span>}
             </label>
             <textarea
               value={imagePrompt}
               onChange={(e) => setImagePrompt(e.target.value)}
-              placeholder={referenceImages.length > 0
-                ? "e.g., 'Merge these images with a beach sunset background'"
-                : "e.g., 'A serene beach at sunset with palm trees'"}
+              placeholder={
+                referenceImages.length > 1
+                  ? "Optional: e.g., 'Merge these images with a beach sunset background' (defaults to 'combine these images')"
+                  : referenceImages.length === 1
+                  ? "Optional: e.g., 'Make it more vibrant' (defaults to 'regenerate this image')"
+                  : "e.g., 'A serene beach at sunset with palm trees'"
+              }
               rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               disabled={disabled || isGenerating}
             />
             <p className="text-xs text-gray-500 mt-1.5">
               {referenceImages.length > 0
-                ? `AI will use ${referenceImages.length} reference image${referenceImages.length > 1 ? 's' : ''} with high fidelity. Image will be sized to ${videoSize}.`
+                ? `AI will use ${referenceImages.length} reference image${referenceImages.length > 1 ? 's' : ''} with high fidelity. Leave prompt empty for default behavior. Image will be sized to ${videoSize}.`
                 : `Image will be automatically sized to match your video dimensions (${videoSize})`}
             </p>
-          </div>
+      </div>
 
-          <button
+      <button
             type="button"
             onClick={handleGenerateImage}
-            disabled={disabled || isGenerating || !imagePrompt.trim()}
+            disabled={disabled || isGenerating || (referenceImages.length === 0 && !imagePrompt.trim())}
             className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
           >
             {isGenerating ? (
@@ -160,39 +163,6 @@ export function ImageGenerator({ videoSize, onImageGenerated, disabled = false }
               </>
             )}
           </button>
-        </>
-      ) : (
-        <>
-          <div className="relative">
-            <img
-              src={generatedImage}
-              alt="Generated reference"
-              className="w-full rounded-lg border-2 border-purple-300"
-            />
-            <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              <span>Applied</span>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-3 border border-purple-200">
-            <p className="text-sm text-gray-700">
-              <span className="font-medium">Prompt:</span> {imagePrompt}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleClearImage}
-            disabled={disabled}
-            className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 font-medium disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
-          >
-            Clear and Generate New Image
-          </button>
-        </>
-      )}
     </div>
   );
 }

@@ -34,6 +34,8 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
   const [seconds, setSeconds] = useState('8');
   const [size, setSize] = useState('1280x720');
   const [referenceImage, setReferenceImage] = useState<File | null>(null);
+  const [referenceImagePreview, setReferenceImagePreview] = useState<string | null>(null);
+  const [referenceImageSource, setReferenceImageSource] = useState<'upload' | 'ai' | 'frame' | null>(null);
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
   const [improvedPrompt, setImprovedPrompt] = useState<string | null>(null);
   const [showImageGenerator, setShowImageGenerator] = useState(false);
@@ -52,11 +54,26 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
   useEffect(() => {
     if (initialReferenceImage) {
       setReferenceImage(initialReferenceImage.file);
+      setReferenceImageSource('frame');
       setUseAIImage(false);
       setShowImageGenerator(false);
+
+      // Create preview URL
+      const url = URL.createObjectURL(initialReferenceImage.file);
+      setReferenceImagePreview(url);
+
       onReferenceImageUsed?.(); // Clear the initial reference image after using it
     }
   }, [initialReferenceImage, onReferenceImageUsed]);
+
+  // Cleanup preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (referenceImagePreview) {
+        URL.revokeObjectURL(referenceImagePreview);
+      }
+    };
+  }, [referenceImagePreview]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +95,8 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
     // Reset form
     setPrompt('');
     setReferenceImage(null);
+    setReferenceImagePreview(null);
+    setReferenceImageSource(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -87,14 +106,46 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       setReferenceImage(file);
+      setReferenceImageSource('upload');
       setUseAIImage(false);
       setShowImageGenerator(false);
+
+      // Create preview URL
+      if (referenceImagePreview) {
+        URL.revokeObjectURL(referenceImagePreview);
+      }
+      const url = URL.createObjectURL(file);
+      setReferenceImagePreview(url);
     }
   };
 
   const handleImageGenerated = (imageFile: File) => {
     setReferenceImage(imageFile);
+    setReferenceImageSource('ai');
     setUseAIImage(true);
+    setShowImageGenerator(false); // Hide the generator after successful generation
+
+    // Create preview URL
+    if (referenceImagePreview) {
+      URL.revokeObjectURL(referenceImagePreview);
+    }
+    const url = URL.createObjectURL(imageFile);
+    setReferenceImagePreview(url);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClearReferenceImage = () => {
+    if (referenceImagePreview) {
+      URL.revokeObjectURL(referenceImagePreview);
+    }
+    setReferenceImage(null);
+    setReferenceImagePreview(null);
+    setReferenceImageSource(null);
+    setUseAIImage(false);
+    setShowImageGenerator(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -230,66 +281,96 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
         </label>
 
         <div className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
-          {/* Upload from file */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">
-              Upload Image
-            </label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleFileChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              disabled={disabled || useAIImage}
-            />
-            {referenceImage && !useAIImage && (
-              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded flex items-center gap-2">
-                <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
+          {referenceImagePreview ? (
+            /* Show preview when reference image is set */
+            <div className="space-y-3">
+              <div className="relative">
+                <img
+                  src={referenceImagePreview}
+                  alt="Reference"
+                  className="w-full rounded-lg border-2 border-green-300"
+                />
+                <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span>Applied</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-3 border border-green-200">
                 <p className="text-sm text-gray-700">
-                  {referenceImage.name}
+                  <span className="font-medium">Source:</span>{' '}
+                  {referenceImageSource === 'ai' && 'AI Generated'}
+                  {referenceImageSource === 'frame' && 'Extracted Frame'}
+                  {referenceImageSource === 'upload' && `Uploaded (${referenceImage?.name})`}
                 </p>
               </div>
-            )}
-          </div>
 
-          {/* OR divider */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1 border-t border-gray-300"></div>
-            <span className="text-xs font-medium text-gray-500 uppercase">or</span>
-            <div className="flex-1 border-t border-gray-300"></div>
-          </div>
-
-          {/* AI Generate section */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">
-              Generate with AI
-            </label>
-            <button
-              type="button"
-              onClick={() => setShowImageGenerator(!showImageGenerator)}
-              className="w-full px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 rounded-lg hover:from-purple-200 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-all flex items-center justify-center gap-2 border border-purple-200"
-              disabled={disabled}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
-              <span>{showImageGenerator ? 'Hide' : 'Generate'} AI Reference Image</span>
-            </button>
-
-            {/* Image Generator component */}
-            {showImageGenerator && (
-              <div className="mt-3">
-                <ImageGenerator
-                  videoSize={size}
-                  onImageGenerated={handleImageGenerated}
+              <button
+                type="button"
+                onClick={handleClearReferenceImage}
+                disabled={disabled}
+                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 font-medium disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+              >
+                Clear Reference Image
+              </button>
+            </div>
+          ) : (
+            /* Show upload/generate options when no reference image */
+            <>
+              {/* Upload from file */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Upload Image
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleFileChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   disabled={disabled}
                 />
               </div>
-            )}
-          </div>
+
+              {/* OR divider */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 border-t border-gray-300"></div>
+                <span className="text-xs font-medium text-gray-500 uppercase">or</span>
+                <div className="flex-1 border-t border-gray-300"></div>
+              </div>
+
+              {/* AI Generate section */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Generate with AI
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowImageGenerator(!showImageGenerator)}
+                  className="w-full px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 rounded-lg hover:from-purple-200 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-all flex items-center justify-center gap-2 border border-purple-200"
+                  disabled={disabled}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  <span>{showImageGenerator ? 'Hide' : 'Generate'} AI Reference Image</span>
+                </button>
+
+                {/* Image Generator component */}
+                {showImageGenerator && (
+                  <div className="mt-3">
+                    <ImageGenerator
+                      videoSize={size}
+                      onImageGenerated={handleImageGenerated}
+                      disabled={disabled}
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

@@ -112,7 +112,7 @@ class MediaCacheService {
 
       const cacheKey = this.getCacheKey(videoId, variant);
 
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         const transaction = this.db!.transaction([STORE_NAME], 'readonly');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.get(cacheKey);
@@ -222,7 +222,7 @@ class MediaCacheService {
       await this.init();
       if (!this.db) return { count: 0, size: 0 };
 
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         const transaction = this.db!.transaction([STORE_NAME], 'readonly');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.getAll();

@@ -124,7 +124,7 @@ export function VideoPlayer({ video, prompt, onClose, onUseFrame }: VideoPlayerP
 
           {onUseFrame && (
             <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-3">Use frame as reference image:</p>
+              <p className="text-sm font-medium text-gray-700 mb-3">Extract frame to use as reference image:</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
@@ -136,7 +136,7 @@ export function VideoPlayer({ video, prompt, onClose, onUseFrame }: VideoPlayerP
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
                   </svg>
-                  <span>First Frame</span>
+                  <span>Use First Frame as Reference</span>
                 </button>
                 <button
                   onClick={() => {
@@ -145,7 +145,7 @@ export function VideoPlayer({ video, prompt, onClose, onUseFrame }: VideoPlayerP
                   }}
                   className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
                 >
-                  <span>Last Frame</span>
+                  <span>Use Last Frame as Reference</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                   </svg>
