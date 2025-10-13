@@ -4,7 +4,6 @@ import { VideoIdsProvider, useVideoIds } from './hooks/useVideoIds';
 import { ApiKeyInput } from './components/ApiKeyInput';
 import { VideoCreationForm } from './components/VideoCreationForm';
 import { VideoGallery } from './components/VideoGallery';
-import { CacheStatus } from './components/CacheStatus';
 import { Video, VideoCreateParams } from './types';
 import { apiService } from './services/api';
 
@@ -15,6 +14,7 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [promptToReuse, setPromptToReuse] = useState<string | null>(null);
+  const [referenceImageToUse, setReferenceImageToUse] = useState<{ file: File; name: string } | null>(null);
 
   const loadVideos = async () => {
     if (!hasApiKey) return;
@@ -88,6 +88,19 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleUseFrame = async (videoId: string, position: 'first' | 'last') => {
+    try {
+      const blob = await apiService.extractVideoFrame(videoId, position);
+      const file = new File([blob], `${videoId}_${position}_frame.png`, { type: 'image/png' });
+      setReferenceImageToUse({ file, name: `${position} frame from video ${videoId.substring(0, 8)}...` });
+      // Scroll to form
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error: any) {
+      console.error('Failed to extract frame:', error);
+      alert(`Failed to extract frame: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
@@ -99,8 +112,6 @@ function AppContent() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <ApiKeyInput />
-
-        {hasApiKey && <CacheStatus />}
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -119,6 +130,8 @@ function AppContent() {
               onSubmit={handleCreateVideo}
               initialPrompt={promptToReuse}
               onPromptUsed={() => setPromptToReuse(null)}
+              initialReferenceImage={referenceImageToUse}
+              onReferenceImageUsed={() => setReferenceImageToUse(null)}
             />
 
             {loading ? (
@@ -133,6 +146,7 @@ function AppContent() {
                 onDelete={handleDeleteVideo}
                 onRemix={handleRemixVideo}
                 onReusePrompt={handleReusePrompt}
+                onUseFrame={handleUseFrame}
                 getPrompt={getPrompt}
               />
             )}

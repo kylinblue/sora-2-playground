@@ -42,4 +42,14 @@ COPY --from=frontend-builder /app/frontend/dist ./static
 EXPOSE 8000
 
 # Run the application with gunicorn + uvicorn workers for better performance
-CMD gunicorn main:app --bind 0.0.0.0:8000 --worker-class uvicorn.workers.UvicornWorker --workers 4
+# Using 16 workers for high concurrency I/O-bound workload (2x vCPU count)
+# Workers spend most time waiting on OpenAI API, so 2x overcommit is efficient
+CMD gunicorn main:app \
+    --bind 0.0.0.0:8000 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --workers 16 \
+    --timeout 120 \
+    --graceful-timeout 30 \
+    --keep-alive 5 \
+    --access-logfile - \
+    --error-logfile -

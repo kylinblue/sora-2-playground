@@ -15,7 +15,7 @@ Sora API Playground is a full-stack web application for experimenting with OpenA
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements.txt  # Includes opencv-python and pillow for frame extraction
 
 # Run development server
 python main.py  # Starts on http://localhost:8000
@@ -66,10 +66,12 @@ docker run -p 8000:8000 sora-playground
   - `POST /api/videos`: Create video (supports multipart form data for image uploads)
   - `GET /api/videos/{video_id}`: Get video status/progress
   - `GET /api/videos/{video_id}/content?variant=video|thumbnail|spritesheet`: Download video content
+  - `GET /api/videos/{video_id}/frame?position=first|last`: Extract first or last frame from video as PNG image
   - `GET /api/videos?video_ids=id1,id2,id3`: List videos by comma-separated IDs
   - `DELETE /api/videos/{video_id}`: Delete video
   - `POST /api/videos/{video_id}/remix`: Create remix with new prompt
-  - `POST /api/prompts/improve`: AI-powered prompt enhancement using GPT-4o and Sora prompting guide
+  - `POST /api/prompts/improve`: AI-powered prompt enhancement using o3-mini and Sora prompting guide
+  - `POST /api/images/generate`: Generate reference images using gpt-image-1 (size matched to video dimensions)
 
 ### Frontend Architecture
 
@@ -102,6 +104,9 @@ Two main contexts handle application state:
   - `downloadVideo(videoId, variant)`: Download with automatic caching
   - `deleteVideo(videoId)`: Delete video and clear associated cache
   - `getVideoUrl(videoId, variant)`: Get streaming URL for playback
+  - `improvePrompt(prompt)`: Enhance prompt using AI
+  - `extractVideoFrame(videoId, position)`: Extract first/last frame as PNG blob
+  - `generateImage(prompt, size)`: Generate reference image using gpt-image-1
 
 #### Media Cache Service (frontend/src/services/cache.ts)
 
@@ -121,13 +126,22 @@ Two main contexts handle application state:
 #### Component Structure
 
 - **App.tsx**: Main app component with context providers and video management logic
+  - Handles frame extraction workflow: extracts frame → creates File object → passes to form
 - **ApiKeyInput.tsx**: API key input form (saved to localStorage)
-- **VideoCreationForm.tsx**: Form for creating new videos (prompt, model, duration, size, optional image)
-  - Includes "Enhance with AI" button that uses GPT-4o to optimize prompts
+- **VideoCreationForm.tsx**: Form for creating new videos (prompt, model, duration, size, optional reference image)
+  - Includes "Enhance with AI" button that uses o3-mini to optimize prompts
+  - Integrated ImageGenerator component for AI-powered reference image creation
+  - Supports manual file upload or AI generation (mutually exclusive)
+  - Accepts extracted frames from parent via initialReferenceImage prop
+- **ImageGenerator.tsx**: AI-powered reference image generator using gpt-image-1
+  - Automatically matches image size to selected video dimensions
+  - Displays generated image with prompt details
 - **PromptSuggestionModal.tsx**: Modal for displaying AI-enhanced prompt suggestions
 - **VideoGallery.tsx**: Grid display of videos with status, progress bars, and actions
+  - Includes cache clear button with stats shown on hover
 - **VideoPlayer.tsx**: Modal video player with download/remix options
-- **CacheStatus.tsx**: Displays cache statistics and provides cache management (clear cache)
+  - "Use First Frame" and "Use Last Frame" buttons for frame extraction workflow
+- **CacheStatus.tsx**: Exports useCacheStats hook for cache management
 
 #### Data Flow
 
@@ -144,7 +158,9 @@ Two main contexts handle application state:
 - **No authentication**: The app relies on API key validation by OpenAI. There's no user authentication system.
 - **Stateless backend**: The backend doesn't store any user data or video metadata. All state is managed client-side.
 - **IndexedDB caching**: Videos and thumbnails are cached in the browser's IndexedDB to persist after OpenAI download links expire. This provides offline access to previously downloaded content and improves performance.
-- **AI-powered prompt enhancement**: Uses GPT-4o with the official Sora 2 Prompting Guide to transform basic prompts into production-ready, detailed prompts optimized for video generation. The enhancement adds camera framing, lighting details, color palettes, timed actions, and proper structure.
+- **AI-powered prompt enhancement**: Uses o3-mini with the official Sora 2 Prompting Guide to transform basic prompts into production-ready, detailed prompts optimized for video generation. The enhancement adds camera framing, lighting details, color palettes, timed actions, and proper structure.
+- **AI-powered reference image generation**: Uses gpt-image-1 to generate reference images from text prompts, automatically matching the image size to the selected video dimensions. This allows users to create custom first-frame references for their videos without needing external image tools.
+- **Video frame extraction**: Allows users to extract the first or last frame from completed videos and use them as reference images for new video generation. This enables continuation and variation workflows (e.g., "continue the action from the last frame" or "remix the opening scene").
 
 ## Configuration
 

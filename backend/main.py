@@ -9,6 +9,12 @@ from pydantic import BaseModel
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import cv2
+import numpy as np
+from PIL import Image
+import io
+import tempfile
+import base64
 
 # Load environment variables
 load_dotenv()
@@ -50,6 +56,11 @@ class PromptImproveRequest(BaseModel):
     prompt: str
 
 
+class ImageGenerateRequest(BaseModel):
+    prompt: str
+    size: str  # Video size format: 720x1280, 1280x720, 1024x1024, 1280x1280
+
+
 def get_openai_client(api_key: str) -> OpenAI:
     """
     Create OpenAI client with user's API key
@@ -70,6 +81,22 @@ def get_openai_client(api_key: str) -> OpenAI:
             key = CUSTOM_API_KEY_VALUE
 
     return OpenAI(api_key=key)
+
+
+def map_video_size_to_image_size(video_size: str) -> str:
+    """
+    Map video size to the closest supported image generation size
+
+    Video sizes: 720x1280, 1280x720, 1024x1024, 1280x1280
+    Image sizes: 1024x1024, 1536x1024, 1024x1536
+    """
+    size_map = {
+        "720x1280": "1024x1536",  # Portrait
+        "1280x720": "1536x1024",  # Landscape
+        "1024x1024": "1024x1024",  # Square
+        "1280x1280": "1024x1024",  # Square HD (closest match)
+    }
+    return size_map.get(video_size, "1024x1024")
 
 
 @app.post("/api/videos")
@@ -316,6 +343,211 @@ async def remix_video(
             "seconds": video.seconds,
             "remixed_from_video_id": getattr(video, "remixed_from_video_id", video_id)
         }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/videos/{video_id}/frame")
+async def extract_video_frame(
+    video_id: str,
+    position: str = Query("first", description="Frame position: 'first' or 'last'"),
+    authorization: str = Header(...)
+):
+    """
+    Extract the first or last frame from a video
+
+    Parameters:
+    - video_id: ID of the video
+    - position: 'first' or 'last' frame to extract
+
+    Returns the frame as a PNG image
+    """
+    try:
+        client = get_openai_client(authorization)
+
+        # Download the video content
+        content = client.videos.download_content(video_id, variant="video")
+        video_bytes = content.read()
+
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
+            temp_video.write(video_bytes)
+            temp_video_path = temp_video.name
+
+        try:
+            # Open video with OpenCV
+            cap = cv2.VideoCapture(temp_video_path)
+
+            if not cap.isOpened():
+                raise HTTPException(status_code=500, detail="Failed to open video file")
+
+            # Get frame based on position
+            if position == "last":
+                # Jump to the last frame
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                cap.set(cv2.CAP_PROP_POS_FRAMES, total_frames - 1)
+
+            # Read the frame
+            ret, frame = cap.read()
+            cap.release()
+
+            if not ret:
+                raise HTTPException(status_code=500, detail="Failed to extract frame from video")
+
+            # Convert BGR to RGB
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            # Convert to PIL Image
+            pil_image = Image.fromarray(frame_rgb)
+
+            # Save to bytes
+            img_byte_arr = io.BytesIO()
+            pil_image.save(img_byte_arr, format='PNG')
+            img_byte_arr.seek(0)
+
+            return StreamingResponse(
+                io.BytesIO(img_byte_arr.getvalue()),
+                media_type="image/png",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{video_id}_{position}_frame.png"'
+                }
+            )
+
+        finally:
+            # Clean up temporary file
+            os.unlink(temp_video_path)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/images/generate")
+async def generate_image(
+    prompt: str = Form(...),
+    size: str = Form(...),
+    reference_images: list[UploadFile] = File(None),
+    authorization: str = Header(...)
+):
+    """
+    Generate an image using gpt-image-1 API with optional reference images
+
+    The image size will be automatically matched to the video size.
+    Supports multiple reference images for AI-powered image merging.
+
+    Parameters:
+    - prompt: Description of the image to generate
+    - size: Video size (will be mapped to closest image size)
+    - reference_images: Optional list of reference images to merge/use as inspiration
+
+    Returns the generated image as PNG bytes
+    """
+    try:
+        client = get_openai_client(authorization)
+
+        # Map video size to image size
+        image_size = map_video_size_to_image_size(size)
+        print(f"Generating image: video size {size} -> image size {image_size}")
+
+        # Build input content for Responses API
+        input_content = []
+
+        # Add text prompt
+        input_content.append({"type": "input_text", "text": prompt})
+
+        # Add reference images if provided
+        if reference_images:
+            print(f"Processing {len(reference_images)} reference images")
+            for idx, ref_image in enumerate(reference_images):
+                if ref_image:
+                    # Read image and encode as base64
+                    image_bytes = await ref_image.read()
+                    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+
+                    # Determine content type
+                    content_type = ref_image.content_type or 'image/png'
+
+                    # Add to input content
+                    input_content.append({
+                        "type": "input_image",
+                        "image_url": f"data:{content_type};base64,{image_base64}"
+                    })
+                    print(f"Added reference image {idx + 1}: {ref_image.filename}")
+
+        # Generate image using gpt-image-1 via Responses API
+        response = client.responses.create(
+            model="gpt-5",
+            input=[{
+                "role": "user",
+                "content": input_content
+            }],
+            tools=[
+                {
+                    "type": "image_generation",
+                    "size": image_size,
+                    "quality": "high",
+                    "input_fidelity": "high" if reference_images else "low",
+                }
+            ],
+        )
+
+        # Extract image data
+        image_data = [
+            output.result
+            for output in response.output
+            if output.type == "image_generation_call"
+        ]
+
+        if not image_data:
+            raise HTTPException(status_code=500, detail="No image was generated")
+
+        # Decode base64 image
+        image_base64 = image_data[0]
+        image_bytes = base64.b64decode(image_base64)
+
+        # Resize image to exact video dimensions with aspect ratio preservation
+        # Parse video size (e.g., "1280x720" -> width=1280, height=720)
+        target_width, target_height = map(int, size.split('x'))
+        target_aspect = target_width / target_height
+
+        # Open image with PIL
+        pil_image = Image.open(io.BytesIO(image_bytes))
+        img_width, img_height = pil_image.size
+        img_aspect = img_width / img_height
+
+        # Resize to fit the target dimensions while maintaining aspect ratio
+        # We want to cover the entire target area, so we resize to the larger dimension
+        if img_aspect > target_aspect:
+            # Image is wider than target - fit to height, crop width
+            new_height = target_height
+            new_width = int(new_height * img_aspect)
+        else:
+            # Image is taller than target - fit to width, crop height
+            new_width = target_width
+            new_height = int(new_width / img_aspect)
+
+        # Resize maintaining aspect ratio
+        resized_image = pil_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # Center crop to exact target dimensions
+        left = (new_width - target_width) // 2
+        top = (new_height - target_height) // 2
+        right = left + target_width
+        bottom = top + target_height
+        resized_image = resized_image.crop((left, top, right, bottom))
+
+        # Convert back to bytes
+        output_bytes = io.BytesIO()
+        resized_image.save(output_bytes, format='PNG')
+        output_bytes.seek(0)
+
+        return StreamingResponse(
+            output_bytes,
+            media_type="image/png",
+            headers={
+                "Content-Disposition": f'attachment; filename="generated_image.png"'
+            }
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

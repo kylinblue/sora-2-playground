@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Video } from '../types';
 import { apiService } from '../services/api';
 import { VideoPlayer } from './VideoPlayer';
+import { useCacheStats } from './CacheStatus';
 
 interface VideoGalleryProps {
   videos: Video[];
@@ -10,15 +11,17 @@ interface VideoGalleryProps {
   onDelete: (videoId: string) => void;
   onRemix: (videoId: string, prompt: string) => void;
   onReusePrompt: (prompt: string) => void;
+  onUseFrame: (videoId: string, position: 'first' | 'last') => void;
   getPrompt: (videoId: string) => string | undefined;
 }
 
-function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, prompt }: {
+function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, onUseFrame, prompt }: {
   video: Video;
   onSelect: () => void;
   onDelete: () => void;
   onRemix: (prompt: string) => void;
   onReusePrompt: () => void;
+  onUseFrame: (position: 'first' | 'last') => void;
   prompt?: string;
 }) {
   const [showRemixInput, setShowRemixInput] = useState(false);
@@ -145,6 +148,20 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, prompt }
           {video.size} • {video.seconds}s
         </div>
 
+        {video.status === 'failed' && (
+          <div className="space-y-2">
+            <button
+              onClick={onDelete}
+              className="w-full px-3 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 flex items-center justify-center gap-1.5"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Failed Video
+            </button>
+          </div>
+        )}
+
         {video.status === 'completed' && (
           <>
             {!showRemixInput ? (
@@ -174,6 +191,28 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, prompt }
                     Reuse Prompt
                   </button>
                 )}
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => onUseFrame('first')}
+                    className="flex-1 px-2 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs rounded hover:from-purple-600 hover:to-blue-600 flex items-center justify-center gap-1"
+                    title="Use first frame as reference image"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                    </svg>
+                    <span>First</span>
+                  </button>
+                  <button
+                    onClick={() => onUseFrame('last')}
+                    className="flex-1 px-2 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs rounded hover:from-purple-600 hover:to-blue-600 flex items-center justify-center gap-1"
+                    title="Use last frame as reference image"
+                  >
+                    <span>Last</span>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -207,8 +246,9 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, prompt }
   );
 }
 
-export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, onReusePrompt, getPrompt }: VideoGalleryProps) {
+export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, onReusePrompt, onUseFrame, getPrompt }: VideoGalleryProps) {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  const { stats, formatBytes, clearCache } = useCacheStats();
 
   if (videos.length === 0) {
     return (
@@ -236,6 +276,18 @@ export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, on
             </svg>
             Refresh
           </button>
+          {stats.count > 0 && (
+            <button
+              onClick={clearCache}
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center gap-2"
+              title={`Cache: ${stats.count} item${stats.count !== 1 ? 's' : ''} (${formatBytes(stats.size)}). Videos and thumbnails are cached locally to work offline.`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              Clear Cache
+            </button>
+          )}
           <button
             onClick={onClear}
             className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-2"
@@ -260,6 +312,7 @@ export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, on
               onDelete={() => onDelete(video.id)}
               onRemix={(remixPrompt) => onRemix(video.id, remixPrompt)}
               onReusePrompt={() => prompt && onReusePrompt(prompt)}
+              onUseFrame={(position) => onUseFrame(video.id, position)}
             />
           );
         })}
@@ -270,6 +323,7 @@ export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, on
           video={selectedVideo}
           prompt={getPrompt(selectedVideo.id)}
           onClose={() => setSelectedVideo(null)}
+          onUseFrame={onUseFrame}
         />
       )}
     </>

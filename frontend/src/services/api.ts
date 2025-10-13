@@ -83,6 +83,35 @@ class SoraApiService {
     return response.data;
   }
 
+  async extractVideoFrame(videoId: string, position: 'first' | 'last' = 'first'): Promise<Blob> {
+    const response = await this.client.get(`/videos/${videoId}/frame`, {
+      params: { position },
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  async generateImage(prompt: string, size: string, referenceImages?: File[]): Promise<Blob> {
+    const formData = new FormData();
+    formData.append('prompt', prompt);
+    formData.append('size', size);
+
+    // Add reference images if provided
+    if (referenceImages && referenceImages.length > 0) {
+      referenceImages.forEach((file) => {
+        formData.append('reference_images', file);
+      });
+    }
+
+    const response = await this.client.post('/images/generate', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
   getVideoUrl(videoId: string, variant: 'video' | 'thumbnail' | 'spritesheet' = 'video'): string {
     const url = `/api/videos/${videoId}/content?variant=${variant}`;
     if (this.apiKey) {
