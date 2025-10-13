@@ -40,7 +40,6 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
   const [improvedPrompt, setImprovedPrompt] = useState<string | null>(null);
   const [showImageGenerator, setShowImageGenerator] = useState(false);
-  const [useAIImage, setUseAIImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle initial prompt from parent (reuse prompt feature)
@@ -56,7 +55,6 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
     if (initialReferenceImage) {
       setReferenceImage(initialReferenceImage.file);
       setReferenceImageSource('frame');
-      setUseAIImage(false);
       setShowImageGenerator(false);
 
       // Create preview URL
@@ -178,7 +176,6 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith('image/')) return;
 
-    setUseAIImage(false);
     setShowImageGenerator(false);
 
     // Parse target dimensions from size
@@ -239,7 +236,6 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
   const handleImageGenerated = (imageFile: File) => {
     setReferenceImage(imageFile);
     setReferenceImageSource('ai');
-    setUseAIImage(true);
     setShowImageGenerator(false); // Hide the generator after successful generation
 
     // Create preview URL
@@ -262,7 +258,6 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
     setReferenceImagePreview(null);
     setReferenceImageSource(null);
     setImageResizeNotice(null);
-    setUseAIImage(false);
     setShowImageGenerator(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
