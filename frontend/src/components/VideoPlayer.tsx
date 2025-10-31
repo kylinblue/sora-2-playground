@@ -34,6 +34,21 @@ export function VideoPlayer({ video, prompt, onClose, onUseFrame }: VideoPlayerP
     };
   }, [video.id]);
 
+  // Handle ESC key to close the modal
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [onClose]);
+
   const handleDownload = async () => {
     try {
       const blob = await apiService.downloadVideo(video.id, 'video');
@@ -52,13 +67,19 @@ export function VideoPlayer({ video, prompt, onClose, onUseFrame }: VideoPlayerP
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
-        <div className="p-4 border-b flex items-center justify-between">
-          <h2 className="text-xl font-bold">Video Player</h2>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-4 border-b border-gray-300 dark:border-gray-600 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Video Player</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -69,36 +90,38 @@ export function VideoPlayer({ video, prompt, onClose, onUseFrame }: VideoPlayerP
         <div className="p-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <span className="ml-3 text-gray-600">Loading video...</span>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+              <span className="ml-3 text-gray-600 dark:text-gray-400">Loading video...</span>
             </div>
           ) : videoUrl ? (
-            <video
-              controls
-              className="w-full rounded-lg"
-              src={videoUrl}
-            >
-              Your browser does not support the video tag.
-            </video>
+            <div className="flex justify-center">
+              <video
+                controls
+                className="max-w-full max-h-[70vh] rounded-lg"
+                src={videoUrl}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
           ) : (
-            <div className="flex items-center justify-center py-8 text-red-600">
+            <div className="flex items-center justify-center py-8 text-red-600 dark:text-red-400">
               Failed to load video
             </div>
           )}
 
           {prompt && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <label className="block text-sm font-medium text-blue-900 mb-2">
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+              <label className="block text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">
                 Original Prompt
               </label>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
                 {prompt}
               </p>
             </div>
           )}
 
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="grid grid-cols-2 gap-4 text-sm text-gray-900 dark:text-gray-300">
               <div>
                 <span className="font-medium">Model:</span> {video.model}
               </div>
@@ -123,8 +146,8 @@ export function VideoPlayer({ video, prompt, onClose, onUseFrame }: VideoPlayerP
           </button>
 
           {onUseFrame && (
-            <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-3">Extract frame to use as reference image:</p>
+            <div className="mt-4 p-4 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Extract frame to use as reference image:</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => {

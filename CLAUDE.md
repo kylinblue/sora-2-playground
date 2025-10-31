@@ -57,11 +57,11 @@ docker run -p 8000:8000 sora-playground
 
 - **FastAPI application** with CORS middleware for cross-origin requests
 - **API key management**: Supports both user-provided OpenAI keys and custom "gift codes" via environment variables
-  - `get_openai_client()` function (lines 49-68) handles API key resolution
+  - `get_openai_client()` function (lines 64-83) handles API key resolution
   - If `CUSTOM_API_KEY_NAME` matches the provided key, uses `CUSTOM_API_KEY_VALUE` instead
   - API keys passed as `Bearer` tokens in `Authorization` header
 - **No server-side storage**: Video IDs are tracked client-side in localStorage
-- **Static file serving**: In production mode, serves built frontend from `static/` directory (lines 327-344)
+- **Static file serving**: In production mode, serves built frontend from `static/` directory (lines 677-694)
 - **Video endpoints**:
   - `POST /api/videos`: Create video (supports multipart form data for image uploads)
   - `GET /api/videos/{video_id}`: Get video status/progress
@@ -71,7 +71,10 @@ docker run -p 8000:8000 sora-playground
   - `DELETE /api/videos/{video_id}`: Delete video
   - `POST /api/videos/{video_id}/remix`: Create remix with new prompt
   - `POST /api/prompts/improve`: AI-powered prompt enhancement using o3-mini and Sora prompting guide
-  - `POST /api/images/generate`: Generate reference images using gpt-image-1 (size matched to video dimensions)
+  - `POST /api/images/generate`: Generate reference images using gpt-5/gpt-image-1 via Responses API
+    - Supports multiple reference images for AI-powered merging/composition
+    - Automatically resizes output to exact video dimensions with center cropping
+    - Uses high input_fidelity when reference images provided
 
 ### Frontend Architecture
 
@@ -133,8 +136,9 @@ Two main contexts handle application state:
   - Integrated ImageGenerator component for AI-powered reference image creation
   - Supports manual file upload or AI generation (mutually exclusive)
   - Accepts extracted frames from parent via initialReferenceImage prop
-- **ImageGenerator.tsx**: AI-powered reference image generator using gpt-image-1
+- **ImageGenerator.tsx**: AI-powered reference image generator using gpt-5/image_generation tool
   - Automatically matches image size to selected video dimensions
+  - Supports multiple reference images for AI-powered composition
   - Displays generated image with prompt details
 - **PromptSuggestionModal.tsx**: Modal for displaying AI-enhanced prompt suggestions
 - **VideoGallery.tsx**: Grid display of videos with status, progress bars, and actions
@@ -159,7 +163,7 @@ Two main contexts handle application state:
 - **Stateless backend**: The backend doesn't store any user data or video metadata. All state is managed client-side.
 - **IndexedDB caching**: Videos and thumbnails are cached in the browser's IndexedDB to persist after OpenAI download links expire. This provides offline access to previously downloaded content and improves performance.
 - **AI-powered prompt enhancement**: Uses o3-mini with the official Sora 2 Prompting Guide to transform basic prompts into production-ready, detailed prompts optimized for video generation. The enhancement adds camera framing, lighting details, color palettes, timed actions, and proper structure.
-- **AI-powered reference image generation**: Uses gpt-image-1 to generate reference images from text prompts, automatically matching the image size to the selected video dimensions. This allows users to create custom first-frame references for their videos without needing external image tools.
+- **AI-powered reference image generation**: Uses gpt-5 with image_generation tool (via Responses API) to generate reference images from text prompts, automatically matching the image size to the selected video dimensions. Supports multiple reference images for AI-powered composition/merging. This allows users to create custom first-frame references for their videos without needing external image tools.
 - **Video frame extraction**: Allows users to extract the first or last frame from completed videos and use them as reference images for new video generation. This enables continuation and variation workflows (e.g., "continue the action from the last frame" or "remix the opening scene").
 
 ## Configuration
@@ -176,7 +180,7 @@ CUSTOM_API_KEY_VALUE=sk-your-actual-openai-api-key
 
 Vite proxies `/api` requests to `http://localhost:8000` during development.
 
-### CORS Configuration (backend/main.py lines 22-35)
+### CORS Configuration (backend/main.py lines 28-41)
 
 Allows requests from:
 - `http://localhost:5173` (Vite dev server)
@@ -191,7 +195,9 @@ Configured for Railway deployment with `railway.json` and multi-stage `Dockerfil
 2. Stage 2: Sets up Python backend and copies built frontend to `static/`
 3. Runs with `gunicorn` + `uvicorn` workers for production performance
 
-The backend automatically serves the frontend in production mode when `static/` directory exists (lines 327-344).
+The backend automatically serves the frontend in production mode when `static/` directory exists (lines 677-694).
+
+**Production Performance**: Dockerfile configures 16 gunicorn workers (2x CPU count) optimized for I/O-bound workload (waiting on OpenAI API). Uses 120s timeout for long video generation operations.
 
 ## TypeScript Types (frontend/src/types/index.ts)
 

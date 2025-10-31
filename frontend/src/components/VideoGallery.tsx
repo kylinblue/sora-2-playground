@@ -79,16 +79,16 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, onUseFra
 
   const getStatusColor = () => {
     switch (video.status) {
-      case 'completed': return 'text-green-600';
-      case 'failed': return 'text-red-600';
-      case 'in_progress': return 'text-blue-600';
-      case 'queued': return 'text-yellow-600';
-      default: return 'text-gray-600';
+      case 'completed': return 'text-green-600 dark:text-green-400';
+      case 'failed': return 'text-red-600 dark:text-red-400';
+      case 'in_progress': return 'text-blue-600 dark:text-blue-400';
+      case 'queued': return 'text-yellow-600 dark:text-yellow-400';
+      default: return 'text-gray-600 dark:text-gray-400';
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
       {video.status === 'completed' ? (
         <div className="relative cursor-pointer" onClick={onSelect}>
           {thumbnailUrl ? (
@@ -98,8 +98,8 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, onUseFra
               className="w-full h-48 object-cover"
             />
           ) : (
-            <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+            <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 dark:border-gray-500"></div>
             </div>
           )}
           <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
@@ -109,28 +109,28 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, onUseFra
           </div>
         </div>
       ) : (
-        <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
+        <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
           {video.status === 'failed' ? (
             <div className="text-center p-4">
-              <svg className="w-12 h-12 text-red-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-sm text-red-600">Generation Failed</p>
+              <p className="text-sm text-red-600 dark:text-red-400">Generation Failed</p>
               {video.error && (
-                <p className="text-xs text-gray-500 mt-1">{video.error.message}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{video.error.message}</p>
               )}
             </div>
           ) : (
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-sm text-gray-600">{video.status === 'queued' ? 'Queued' : 'Processing'}</p>
-              <div className="w-48 bg-gray-200 rounded-full h-2 mt-2">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{video.status === 'queued' ? 'Queued' : 'Processing'}</p>
+              <div className="w-48 bg-gray-200 dark:bg-gray-600 rounded-full h-2 mt-2">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">{progress}%</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{progress}%</p>
             </div>
           )}
         </div>
@@ -141,10 +141,10 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, onUseFra
           <span className={`text-sm font-medium ${getStatusColor()}`}>
             {video.status.replace('_', ' ').toUpperCase()}
           </span>
-          <span className="text-xs text-gray-500">{video.model}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{video.model}</span>
         </div>
 
-        <div className="text-xs text-gray-500 mb-3">
+        <div className="text-xs text-gray-500 dark:text-gray-400 mb-3">
           {video.size} • {video.seconds}s
         </div>
 
@@ -221,7 +221,7 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, onUseFra
                   value={remixPrompt}
                   onChange={(e) => setRemixPrompt(e.target.value)}
                   placeholder="Describe changes..."
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
                 <div className="flex gap-2">
                   <button
@@ -232,7 +232,7 @@ function VideoCard({ video, onSelect, onDelete, onRemix, onReusePrompt, onUseFra
                   </button>
                   <button
                     onClick={() => setShowRemixInput(false)}
-                    className="px-3 py-2 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+                    className="px-3 py-2 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded hover:bg-gray-400 dark:hover:bg-gray-500"
                   >
                     Cancel
                   </button>
@@ -252,12 +252,12 @@ export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, on
 
   if (videos.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-12 text-center">
-        <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
+        <svg className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">No videos yet</h3>
-        <p className="text-gray-500">Create your first video to get started!</p>
+        <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No videos yet</h3>
+        <p className="text-gray-500 dark:text-gray-400">Create your first video to get started!</p>
       </div>
     );
   }
@@ -265,11 +265,11 @@ export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, on
   return (
     <>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Your Videos</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Your Videos</h2>
         <div className="flex gap-2">
           <button
             onClick={onRefresh}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center gap-2"
+            className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -279,7 +279,7 @@ export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, on
           {stats.count > 0 && (
             <button
               onClick={clearCache}
-              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center gap-2"
+              className="px-4 py-2 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900 flex items-center gap-2"
               title={`Cache: ${stats.count} item${stats.count !== 1 ? 's' : ''} (${formatBytes(stats.size)}). Videos and thumbnails are cached locally to work offline.`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,7 +290,7 @@ export function VideoGallery({ videos, onRefresh, onClear, onDelete, onRemix, on
           )}
           <button
             onClick={onClear}
-            className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center gap-2"
+            className="px-4 py-2 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900 flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

@@ -87,14 +87,14 @@ def map_video_size_to_image_size(video_size: str) -> str:
     """
     Map video size to the closest supported image generation size
 
-    Video sizes: 720x1280, 1280x720, 1024x1024, 1280x1280
+    Video sizes: 720x1280, 1280x720, 1024x1792, 1792x1024
     Image sizes: 1024x1024, 1536x1024, 1024x1536
     """
     size_map = {
         "720x1280": "1024x1536",  # Portrait
         "1280x720": "1536x1024",  # Landscape
-        "1024x1024": "1024x1024",  # Square
-        "1280x1280": "1024x1024",  # Square HD (closest match)
+        "1024x1792": "1024x1536",  # Portrait Tall (closest match)
+        "1792x1024": "1536x1024",  # Landscape Wide (closest match)
     }
     return size_map.get(video_size, "1024x1024")
 

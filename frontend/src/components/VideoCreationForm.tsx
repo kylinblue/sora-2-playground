@@ -16,16 +16,14 @@ interface VideoCreationFormProps {
 const SIZE_OPTIONS = [
   { value: '720x1280', label: '720x1280 (Portrait)' },
   { value: '1280x720', label: '1280x720 (Landscape)' },
-  { value: '1024x1024', label: '1024x1024 (Square)' },
-  { value: '1280x1280', label: '1280x1280 (Square HD)' },
+  { value: '1024x1792', label: '1024x1792 (Portrait Tall)' },
+  { value: '1792x1024', label: '1792x1024 (Landscape Wide)' },
 ];
 
 const DURATION_OPTIONS = [
   { value: '4', label: '4 seconds' },
   { value: '8', label: '8 seconds' },
   { value: '12', label: '12 seconds' },
-  { value: '16', label: '16 seconds' },
-  { value: '20', label: '20 seconds' },
 ];
 
 export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, onPromptUsed, initialReferenceImage, onReferenceImageUsed }: VideoCreationFormProps) {
@@ -91,8 +89,7 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
 
     onSubmit(params);
 
-    // Reset form
-    setPrompt('');
+    // Reset form (keep prompt persistent)
     setReferenceImage(null);
     setReferenceImagePreview(null);
     setReferenceImageSource(null);
@@ -292,12 +289,12 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 className="text-2xl font-bold mb-4">Create New Video</h2>
+    <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Create New Video</h2>
 
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Prompt
           </label>
           <button
@@ -326,24 +323,24 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Describe your video... e.g., 'A cat riding a motorcycle through a neon-lit city at night'"
           rows={3}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={disabled}
           required
         />
-        <p className="text-xs text-gray-500 mt-1.5">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
           Tip: Click "Enhance with AI" to optimize your prompt using Sora best practices
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Model
           </label>
           <select
             value={model}
             onChange={(e) => setModel(e.target.value as 'sora-2' | 'sora-2-pro')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={disabled}
           >
             <option value="sora-2">Sora 2 (Fast)</option>
@@ -352,13 +349,13 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Duration
           </label>
           <select
             value={seconds}
             onChange={(e) => setSeconds(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={disabled}
           >
             {DURATION_OPTIONS.map((option) => (
@@ -371,13 +368,13 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
       </div>
 
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Size (Resolution)
         </label>
         <select
           value={size}
           onChange={(e) => setSize(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={disabled}
         >
           {SIZE_OPTIONS.map((option) => (
@@ -389,11 +386,11 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
       </div>
 
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-3">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
           Reference Image (Optional)
         </label>
 
-        <div className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
+        <div className="border-2 border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-700/50 space-y-3">
           {referenceImagePreview ? (
             /* Show preview when reference image is set */
             <div className="space-y-3">
@@ -411,15 +408,15 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg p-3 border border-green-200 space-y-2">
-                <p className="text-sm text-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-green-200 dark:border-green-700 space-y-2">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   <span className="font-medium">Source:</span>{' '}
                   {referenceImageSource === 'ai' && 'AI Generated'}
                   {referenceImageSource === 'frame' && 'Extracted Frame'}
                   {referenceImageSource === 'upload' && `Uploaded (${referenceImage?.name})`}
                 </p>
                 {imageResizeNotice && (
-                  <p className="text-xs text-blue-600 flex items-start gap-1.5">
+                  <p className="text-xs text-blue-600 dark:text-blue-400 flex items-start gap-1.5">
                     <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
@@ -432,7 +429,7 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
                 type="button"
                 onClick={handleClearReferenceImage}
                 disabled={disabled}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 font-medium disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 font-medium disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed transition-all"
               >
                 Clear Reference Image
               </button>
@@ -442,7 +439,7 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
             <>
               {/* Upload from file */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
                   Upload Image
                 </label>
                 <input
@@ -450,27 +447,27 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   disabled={disabled}
                 />
               </div>
 
               {/* OR divider */}
               <div className="flex items-center gap-2">
-                <div className="flex-1 border-t border-gray-300"></div>
-                <span className="text-xs font-medium text-gray-500 uppercase">or</span>
-                <div className="flex-1 border-t border-gray-300"></div>
+                <div className="flex-1 border-t border-gray-300 dark:border-gray-600"></div>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">or</span>
+                <div className="flex-1 border-t border-gray-300 dark:border-gray-600"></div>
               </div>
 
               {/* AI Generate section */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
                   Generate with AI
                 </label>
                 <button
                   type="button"
                   onClick={() => setShowImageGenerator(!showImageGenerator)}
-                  className="w-full px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 rounded-lg hover:from-purple-200 hover:to-blue-200 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-all flex items-center justify-center gap-2 border border-purple-200"
+                  className="w-full px-4 py-2 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/50 dark:to-blue-900/50 text-purple-700 dark:text-purple-300 rounded-lg hover:from-purple-200 hover:to-blue-200 dark:hover:from-purple-800/50 dark:hover:to-blue-800/50 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-all flex items-center justify-center gap-2 border border-purple-200 dark:border-purple-700"
                   disabled={disabled}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -498,7 +495,7 @@ export function VideoCreationForm({ onSubmit, disabled = false, initialPrompt, o
       <button
         type="submit"
         disabled={disabled || !prompt.trim()}
-        className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+        className="w-full px-6 py-3 bg-blue-600 dark:bg-blue-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
       >
         Generate Video
       </button>
