@@ -11,7 +11,7 @@ import { apiService } from './services/api';
 
 function AppContent() {
   const { hasApiKey } = useApiKey();
-  const { videoIds, addVideoId, removeVideoId, clearVideoIds, getPrompt } = useVideoIds();
+  const { addVideoPrompt, removeVideoPrompt, clearAllPrompts, getPrompt } = useVideoIds();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ function AppContent() {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiService.listVideos(videoIds);
+      const response = await apiService.listVideos();
       setVideos(response.data);
     } catch (err: any) {
       console.error('Failed to load videos:', err);
@@ -36,13 +36,13 @@ function AppContent() {
 
   useEffect(() => {
     loadVideos();
-  }, [hasApiKey, videoIds.length]);
+  }, [hasApiKey]);
 
   const handleCreateVideo = async (params: VideoCreateParams) => {
     try {
       setError(null);
       const video = await apiService.createVideo(params);
-      addVideoId(video.id, params.prompt); // Store video ID and prompt in local storage
+      addVideoPrompt(video.id, params.prompt); // Store prompt in local storage
       setVideos([video, ...videos]);
       alert('Video generation started! Check the gallery for progress.');
     } catch (err: any) {
@@ -57,7 +57,7 @@ function AppContent() {
 
     try {
       await apiService.deleteVideo(videoId);
-      removeVideoId(videoId); // Remove from local storage
+      removeVideoPrompt(videoId); // Remove prompt from local storage
       setVideos(videos.filter((v) => v.id !== videoId));
     } catch (err: any) {
       console.error('Failed to delete video:', err);
@@ -68,7 +68,7 @@ function AppContent() {
   const handleRemixVideo = async (videoId: string, prompt: string) => {
     try {
       const video = await apiService.remixVideo(videoId, prompt);
-      addVideoId(video.id, prompt); // Store remix video ID and prompt in local storage
+      addVideoPrompt(video.id, prompt); // Store remix prompt in local storage
       setVideos([video, ...videos]);
       alert('Video remix started! Check the gallery for progress.');
     } catch (err: any) {
@@ -78,10 +78,11 @@ function AppContent() {
   };
 
   const handleClearAll = () => {
-    if (!confirm('Are you sure you want to clear all videos from your local list? This will not delete them from OpenAI.')) return;
+    if (!confirm('Are you sure you want to clear all locally stored prompts? Your videos will remain on OpenAI and will reload on refresh.')) return;
 
-    clearVideoIds();
-    setVideos([]);
+    clearAllPrompts();
+    // Reload to show videos without prompts
+    loadVideos();
   };
 
   const handleReusePrompt = (prompt: string) => {

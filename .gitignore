@@ -222,6 +222,10 @@ frontend/build/
 # Backend static files (built frontend)
 backend/static/
 
+# Backend database
+backend/sora_data.db
+backend/*.db
+
 # Frontend environment variables
 frontend/.env
 frontend/.env.local

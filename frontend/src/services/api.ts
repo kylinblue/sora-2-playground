@@ -51,15 +51,9 @@ class SoraApiService {
     return response.data;
   }
 
-  async listVideos(videoIds: string[]): Promise<VideoListResponse> {
-    // If no video IDs, return empty list
-    if (!videoIds || videoIds.length === 0) {
-      return { object: 'list', data: [] };
-    }
-
-    // Send comma-separated video IDs
-    const params = { video_ids: videoIds.join(',') };
-    const response = await this.client.get<VideoListResponse>('/videos', { params });
+  async listVideos(): Promise<VideoListResponse> {
+    // Get all videos from OpenAI API via backend
+    const response = await this.client.get<VideoListResponse>('/videos');
     return response.data;
   }
 
