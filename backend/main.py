@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form, Quer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from typing import Optional, List
+from typing import Optional
 from openai import OpenAI, AsyncOpenAI
 import httpx
 from pydantic import BaseModel
@@ -236,37 +236,52 @@ async def download_video_content(
 
 @app.get("/api/videos")
 async def list_videos(
+    video_ids: Optional[str] = Query(None, description="Comma-separated list of video IDs"),
     authorization: str = Header(...)
 ):
     """
-    List all videos for the authenticated API key
+    Get status for specific videos by ID
 
-    Uses OpenAI's native videos.list() to retrieve all videos associated
-    with the API key. This automatically provides access to your video
-    history across all devices.
+    Parameters:
+    - video_ids: Comma-separated list of video IDs (e.g., "id1,id2,id3")
+
+    Returns video status for each provided ID. Videos are fetched individually
+    to support multi-user scenarios with shared API keys.
     """
     try:
         client = get_openai_client(authorization)
 
-        # Get all videos from OpenAI API
-        videos_response = client.videos.list()
+        if not video_ids:
+            # Return empty list if no IDs provided
+            return {
+                "object": "list",
+                "data": []
+            }
 
-        # Convert to list format
+        # Split comma-separated IDs
+        ids = [vid.strip() for vid in video_ids.split(",") if vid.strip()]
+
         videos_data = []
-        for video in videos_response.data:
-            videos_data.append({
-                "id": video.id,
-                "object": video.object,
-                "model": video.model,
-                "status": video.status,
-                "progress": getattr(video, "progress", 0),
-                "created_at": video.created_at,
-                "size": getattr(video, "size", None),
-                "seconds": getattr(video, "seconds", None),
-                "completed_at": getattr(video, "completed_at", None),
-                "error": getattr(video, "error", None),
-                "remixed_from_video_id": getattr(video, "remixed_from_video_id", None)
-            })
+        for video_id in ids:
+            try:
+                video = client.videos.retrieve(video_id)
+                videos_data.append({
+                    "id": video.id,
+                    "object": video.object,
+                    "model": video.model,
+                    "status": video.status,
+                    "progress": getattr(video, "progress", 0),
+                    "created_at": video.created_at,
+                    "size": getattr(video, "size", None),
+                    "seconds": getattr(video, "seconds", None),
+                    "completed_at": getattr(video, "completed_at", None),
+                    "error": getattr(video, "error", None),
+                    "remixed_from_video_id": getattr(video, "remixed_from_video_id", None)
+                })
+            except Exception as e:
+                # Skip videos that can't be retrieved (deleted, etc.)
+                print(f"Failed to retrieve video {video_id}: {e}")
+                continue
 
         return {
             "object": "list",

@@ -57,17 +57,17 @@ docker run -p 8000:8000 sora-playground
 
 - **FastAPI application** with CORS middleware for cross-origin requests
 - **API key management**: Supports both user-provided OpenAI keys and custom "gift codes" via environment variables
-  - `get_openai_client()` function handles API key resolution
+  - `get_openai_client()` function (lines 64-83) handles API key resolution
   - If `CUSTOM_API_KEY_NAME` matches the provided key, uses `CUSTOM_API_KEY_VALUE` instead
   - API keys passed as `Bearer` tokens in `Authorization` header
-- **No server-side storage**: All video data is stored on OpenAI's servers and retrieved via API
-- **Static file serving**: In production mode, serves built frontend from `static/` directory
+- **No server-side storage**: Video IDs are tracked client-side in localStorage
+- **Static file serving**: In production mode, serves built frontend from `static/` directory (lines 677-694)
 - **Video endpoints**:
   - `POST /api/videos`: Create video (supports multipart form data for image uploads)
   - `GET /api/videos/{video_id}`: Get video status/progress
   - `GET /api/videos/{video_id}/content?variant=video|thumbnail|spritesheet`: Download video content
   - `GET /api/videos/{video_id}/frame?position=first|last`: Extract first or last frame from video as PNG image
-  - `GET /api/videos`: List all videos for the authenticated API key (uses OpenAI's `client.videos.list()`)
+  - `GET /api/videos?video_ids=id1,id2,id3`: List videos by comma-separated IDs
   - `DELETE /api/videos/{video_id}`: Delete video
   - `POST /api/videos/{video_id}/remix`: Create remix with new prompt
   - `POST /api/prompts/improve`: AI-powered prompt enhancement using o3-mini and Sora prompting guide
@@ -88,9 +88,9 @@ Two main contexts handle application state:
    - Provides: `apiKey`, `setApiKey()`, `clearApiKey()`, `hasApiKey`
 
 2. **VideoIdsContext** (frontend/src/hooks/useVideoIds.tsx)
-   - Stores video prompts in localStorage (`sora_video_prompts`) for display purposes
-   - Prompts are browser-specific since OpenAI API doesn't return them
-   - Provides: `addVideoPrompt()`, `removeVideoPrompt()`, `clearAllPrompts()`, `getPrompt()`
+   - Manages list of video IDs in localStorage (`sora_video_ids`)
+   - Videos are tracked client-side only (no backend storage)
+   - Provides: `videoIds`, `addVideoId()`, `removeVideoId()`, `clearVideoIds()`
 
 #### API Service Layer (frontend/src/services/api.ts)
 
@@ -102,7 +102,7 @@ Two main contexts handle application state:
   - `setApiKey(key)`: Update authorization header
   - `createVideo(params)`: Submit video generation job
   - `getVideoStatus(videoId)`: Poll for status updates
-  - `listVideos()`: Fetch all videos from OpenAI API (no parameters needed)
+  - `listVideos(videoIds[])`: Batch fetch video statuses
   - `remixVideo(videoId, prompt)`: Create remix
   - `downloadVideo(videoId, variant)`: Download with automatic caching
   - `deleteVideo(videoId)`: Delete video and clear associated cache
@@ -150,19 +150,17 @@ Two main contexts handle application state:
 #### Data Flow
 
 1. User enters API key → stored in `ApiKeyContext` → synced to localStorage
-2. User creates video → `apiService.createVideo()` → video prompt stored in `VideoIdsContext`
-3. Gallery calls `apiService.listVideos()` to fetch all videos from OpenAI API
+2. User creates video → `apiService.createVideo()` → video ID added to `VideoIdsContext`
+3. Gallery polls `apiService.listVideos()` with all stored video IDs
 4. Each video card shows real-time status (queued, in_progress, completed, failed)
-5. Video prompts retrieved from localStorage for display (if available)
-6. Completed videos can be played, downloaded, or remixed
+5. Completed videos can be played, downloaded, or remixed
 
 ### Key Architectural Decisions
 
-- **API key-based video list**: Videos are retrieved directly from OpenAI's API using `client.videos.list()`, automatically associating them with the API key. This provides seamless access across devices.
-- **Client-side prompt storage**: Video prompts are stored in browser localStorage since OpenAI's API doesn't return them. This is browser-specific but provides a better UX by showing what prompts were used.
+- **Client-side video tracking**: Each user's video list is stored in their browser's localStorage, not on the server. This allows multiple users to share the same API key (gift code) while maintaining separate video libraries.
 - **API key proxying**: The backend acts as a proxy to the Sora API. This allows for the "gift code" feature where users can enter a custom key that maps to a real OpenAI API key server-side.
 - **No authentication**: The app relies on API key validation by OpenAI. There's no user authentication system.
-- **Stateless backend**: The backend doesn't store any user data or video metadata. All data comes directly from OpenAI's API.
+- **Stateless backend**: The backend doesn't store any user data or video metadata. All state is managed client-side.
 - **IndexedDB caching**: Videos and thumbnails are cached in the browser's IndexedDB to persist after OpenAI download links expire. This provides offline access to previously downloaded content and improves performance.
 - **AI-powered prompt enhancement**: Uses o3-mini with the official Sora 2 Prompting Guide to transform basic prompts into production-ready, detailed prompts optimized for video generation. The enhancement adds camera framing, lighting details, color palettes, timed actions, and proper structure.
 - **AI-powered reference image generation**: Uses gpt-5 with image_generation tool (via Responses API) to generate reference images from text prompts, automatically matching the image size to the selected video dimensions. Supports multiple reference images for AI-powered composition/merging. This allows users to create custom first-frame references for their videos without needing external image tools.
